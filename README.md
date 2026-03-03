@@ -18,7 +18,7 @@
 ```
 ╔══════════════════════════════════════════════════════════╗
 ║                                                          ║
-║   ░▒▓█  liquid-glass  █▓▒░                               ║
+║   ░▒▓█  liquid-glass  █▓▒░                              ║
 ║                                                          ║
 ║   The glass feels alive.                                 ║
 ║   It breathes. It refracts. It responds.                 ║
