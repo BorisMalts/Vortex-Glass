@@ -612,7 +612,7 @@ A: Yes — override `border-radius` on `.lg` or inline:
 
 ## License
 
-MIT © 2024 — do whatever you want, attribution appreciated.
+MIT © 2026 Boris Maltsev — do whatever you want, attribution appreciated.
 
 ---
 
