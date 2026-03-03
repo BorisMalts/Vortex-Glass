@@ -81,7 +81,7 @@ All four layers are GPU-adaptive: on low-end devices the expensive SVG filter is
 
 ## Installation
 
-### From npm
+### From Github
 
 ```bash
 git clone https://github.com/BorisMalts/Vortex-Glass
