@@ -1,4 +1,4 @@
-# 🫧 Vortex-glass
+# 🫧 Vortex-Glass
 
 <div align="center">
 
