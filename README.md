@@ -598,7 +598,7 @@ A: Yes — override `border-radius` on `.lg` or inline:
 ---
 
 ## License
-Licensed under the Apache License, Version 2.0.
+Licensed under the [Apache License 2.0](LICENSE).
 © 2026 Boris Maltsev.
 
 ---
