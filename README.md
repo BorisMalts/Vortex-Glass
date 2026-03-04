@@ -4,11 +4,11 @@
 
 **Glassmorphism. Done properly.**
 
-*Chromatic aberration · Iridescent shimmer · Pointer-tracked spotlight · GPU-adaptive rendering*
+*WebGL2 caustics · Chromatic dispersion · Spring-physics cursor · Fresnel edge · Iridescence · GPU-adaptive rendering*
 
-[![Version](https://img.shields.io/badge/version-1.0.0-a78bfa?style=flat-square)](https://github.com/BorisMalts/Vortex-Glass?tab=readme-ov-file)
+[![Version](https://img.shields.io/badge/version-1.1.0-a78bfa?style=flat-square)](https://github.com/BorisMalts/Vortex-Glass?tab=readme-ov-file)
 [![License](https://img.shields.io/badge/license-Apache_2.0-818cf8?style=flat-square)](LICENSE)
-[![Size](https://img.shields.io/badge/gzipped-~3kb-34d399?style=flat-square)](#)
+[![Size](https://img.shields.io/badge/gzipped-~9kb-34d399?style=flat-square)](#)
 [![Zero deps](https://img.shields.io/badge/dependencies-zero-f472b6?style=flat-square)](#)
 
 </div>
@@ -22,6 +22,7 @@
 ║                                                          ║
 ║   The glass feels alive.                                 ║
 ║   It breathes. It refracts. It responds.                 ║
+║   Now it caustics. Now it tilts. Now it knows physics.   ║
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
 ```
@@ -31,6 +32,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [What's New in v1.1.0](#whats-new-in-v110)
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
@@ -40,9 +42,14 @@
   - [wrapWithDistortion()](#wrapwithdistortion)
   - [createGrainLayer()](#creategrainlayer)
   - [createReplyQuote()](#createreplyquote)
+  - [attachElement()](#attachelement)
+  - [detachElement()](#detachelement)
+  - [getGpuTier()](#getgputier)
+  - [version()](#version)
 - [CSS Classes](#css-classes)
 - [GPU Tier System](#gpu-tier-system)
 - [CSS Custom Properties](#css-custom-properties)
+- [Visual Layer Stack](#visual-layer-stack)
 - [Accessibility](#accessibility)
 - [Performance Notes](#performance-notes)
 - [Examples](#examples)
@@ -53,35 +60,84 @@
 
 ## Overview
 
-**liquid-glass** is a zero-dependency, ~3 kb (gzipped) library that brings genuine depth to glass-effect UI components. Unlike CSS-only glassmorphism snippets you've seen a hundred times, liquid-glass layers four distinct visual systems on top of each other to produce something that actually *looks* like glass:
+**liquid-glass** is a zero-dependency library that brings genuine optical depth to glass-effect UI components. v1.1.0 moves well beyond CSS-only glassmorphism by introducing a real-time WebGL2 caustic engine, spring-physics cursor dynamics, and physically-based light simulation — while remaining fully adaptive to low-end GPUs and accessible to users who prefer reduced motion.
 
 | Layer | Technique | What it does |
 |-------|-----------|--------------|
-| 🌊 Distortion | SVG `feTurbulence` + `feDisplacementMap` | Organic, subtly animated warping of background content |
-| 🌈 Chromatic aberration | Three-channel `feDisplacementMap` blend | Splits R / G / B at slightly different offsets — the signature of real optics |
-| ✨ Iridescent shimmer | `conic-gradient` + CSS Houdini animation | A slow colour-shift rainbow sheen rotating across the surface |
-| 💡 Pointer spotlight | `radial-gradient` via `--lg-mx` / `--lg-my` | A soft highlight that chases the user's cursor in real time |
+| 🌊 Distortion | SVG `feTurbulence` + 3-channel `feDisplacementMap` | Organic animated warping with per-channel chromatic fringing |
+| ⚡ Caustics | WebGL2 Voronoi fragment shader | Animated light caustic patterns, per-element, blended in screen mode |
+| 🌈 Iridescence | `conic-gradient` + Houdini `--lg-irid` | Slow colour-shift rainbow sheen rotating across the surface |
+| 💡 Spotlight | `radial-gradient` via spring-driven `--lg-mx` / `--lg-my` | A soft highlight that follows the cursor with physical spring momentum |
+| 🔮 Fresnel edge | Schlick approximation in GLSL | Edge glow that intensifies at grazing angles, tilt-aware |
+| 🫧 Thin-film | Per-fragment oil-slick interference | Iridescent shimmer that shifts with tilt and time |
+| 🌬️ Breathing | `lg-breathe` keyframe animation | Organic `border-radius` oscillation — the border feels alive |
 
-All four layers are GPU-adaptive: on low-end devices the expensive SVG filter is automatically replaced with a passthrough, so no user gets a broken experience.
+---
+
+## What's New in v1.1.0
+
+### ⚡ WebGL2 Caustic Engine
+A Voronoi-based caustic light simulation renders on a per-element 2-D overlay canvas. The library maintains a **single shared WebGL2 context** for the entire page — the backend canvas renders one element at a time then blits the result via `drawImage`. Elements beyond the quota (`MAX_WEBGL_ELEMENTS = 12`) fall back to CSS automatically.
+
+### 🎯 Spring-Physics Cursor Dynamics
+Cursor position, hover factor, and 3-D tilt are driven by a **mass–damping–stiffness spring model** (symplectic Euler integration). The spotlight no longer snaps to the cursor — it trails behind with natural momentum, overshoots slightly, then settles.
+
+```
+F = −k(x − target) − d·v      (restoring + damping forces)
+a = F / m                       (Newton's second law)
+v += a · dt                     (velocity update — symplectic first)
+x += v · dt                     (position update)
+```
+
+Three independent spring configurations are used: `cursor` (stiff, fast), `hover` (softer), and `tilt` (slow, heavy).
+
+### 🔬 Per-Channel Chromatic Dispersion
+The caustic layer samples R, G, and B at slightly offset UV coordinates inside the fragment shader, producing coloured light fringing at glass edges — the same optical artefact seen through real glass prisms.
+
+### 🔭 Physically-Based Fresnel Edge
+A **Schlick approximation** computes edge glow based on a surface normal that tilts in response to cursor position and device orientation. The edge brightens at grazing angles exactly as real glass does.
+
+### 🌈 Thin-Film Iridescence & Prismatic Band
+Two new GLSL effects:
+- **Thin-film**: oil-slick interference pattern (`cos` of angle + time + tilt), masked to element edges.
+- **Prismatic band**: a narrow rainbow stripe at the very border, simulating light splitting at the glass edge.
+
+### 📱 Device Orientation Parallax
+`DeviceOrientationEvent` feeds the tilt spring system on mobile. Physically tilting the device produces a 3-D parallax sensation — the glass appears to lean in space.
+
+### 🌬️ Liquid Border Morphing
+Non-pill, non-FAB elements now breathe through a 9-second organic `border-radius` animation cycle, with eight distinct keyframes using asymmetric radii.
+
+### 🎛️ Six Houdini Properties
+Two new custom properties added: `--lg-tx` and `--lg-ty` (tilt axes, type `<number>`), enabling native CSS interpolation of the 3-D transform alongside the existing `--lg-mx`, `--lg-my`, `--lg-irid`, and `--lg-hover`.
+
+### 🧹 Full WeakMap Lifecycle
+Per-element state (springs, canvas, ResizeObserver, listeners) is stored in a `WeakMap<HTMLElement, ElementState>`. Removed elements are automatically garbage-collected; `destroyLiquidGlass()` performs a full clean sweep with zero leaks.
 
 ---
 
 ## Features
 
-- 🏎️ **GPU-tier detection** — probes WebGL renderer string at init time; downgrades gracefully on mobile GPUs
-- 🎛️ **CSS Houdini integration** — registers `@property` custom properties so `--lg-mx`, `--lg-my`, and `--lg-irid` can be transitioned natively by the browser
-- 🧹 **Leak-free teardown** — every `addEventListener` is tracked in a `WeakMap`-style registry and removed precisely on `destroy`
-- 👁️ **MutationObserver auto-tracking** — pointer listeners attach automatically to any `.lg` element added after init
-- ♿ **`prefers-reduced-motion` aware** — all animations halt when the user has requested reduced motion
-- 📦 **Zero dependencies** — pure browser APIs, native ES modules, no build step required
-- 🔁 **Idempotent lifecycle** — `init` / `destroy` can be called multiple times safely
-- 💬 **Messaging UI helpers** — first-class `createReplyQuote()` for chat interfaces
+- ⚡ **WebGL2 caustic engine** — Voronoi fragment shader, one shared GL context, per-element canvas blit
+- 🎯 **Spring-physics cursor** — mass / damping / stiffness model, three independent spring configs
+- 🔬 **Per-channel chromatic dispersion** — R / G / B sampled at different UV offsets in GLSL
+- 🔭 **Schlick Fresnel edge glow** — physically correct, tilt-aware
+- 🌈 **Thin-film iridescence** — oil-slick interference pattern at grazing angles
+- 🫧 **Liquid border morphing** — organic `border-radius` breathing animation
+- 📱 **Device orientation parallax** — gyroscope drives 3-D tilt on mobile
+- 🏎️ **Adaptive GPU tiers** — `high / mid / low`, WebGL quota enforced
+- 🎛️ **Six Houdini custom properties** — all spring-driven values are CSS-animatable
+- 👁️ **ResizeObserver** — caustic canvas stays pixel-perfect as elements resize
+- 🧹 **Leak-free WeakMap lifecycle** — GC handles removed elements automatically
+- ♿ **`prefers-reduced-motion` aware** — all animations disabled when requested
+- 📦 **Zero dependencies** — pure browser APIs, native ES modules
+- 🔁 **Idempotent lifecycle** — `init` / `destroy` safe to call multiple times
 
 ---
 
 ## Installation
 
-### From Github
+### From GitHub
 
 ```bash
 git clone https://github.com/BorisMalts/Vortex-Glass
@@ -97,8 +153,6 @@ git clone https://github.com/BorisMalts/Vortex-Glass
 <head>
   <meta charset="UTF-8" />
   <title>My App</title>
-
-  <!-- Your page needs a rich background for the glass to refract -->
   <style>
     body {
       background: linear-gradient(135deg, #1a0533 0%, #0d1f4c 50%, #0a2a1a 100%);
@@ -108,13 +162,13 @@ git clone https://github.com/BorisMalts/Vortex-Glass
 </head>
 <body>
 
-  <!-- 1. Add the .lg class to any element -->
-  <div class="lg" style="padding: 24px; max-width: 320px; margin: 60px auto; color: white;">
+  <div class="lg lg-interactive"
+       style="padding: 24px; max-width: 320px; margin: 60px auto; color: white; border-radius: 18px;">
+    <div class="lg-grain"></div>
     <h2>Hello, glass.</h2>
-    <p>This card refracts, shimmers, and responds to your cursor.</p>
+    <p>This card caustics, refracts, shimmers, and responds to your cursor with spring physics.</p>
   </div>
 
-  <!-- 2. Import and init -->
   <script type="module">
     import { initLiquidGlass } from './liquid-glass.js';
     initLiquidGlass();
@@ -123,8 +177,6 @@ git clone https://github.com/BorisMalts/Vortex-Glass
 </body>
 </html>
 ```
-
-That's it. The library scans the DOM, attaches pointer tracking, injects the SVG filter, and starts the shimmer — all from that one call.
 
 ---
 
@@ -136,23 +188,21 @@ That's it. The library scans the DOM, attaches pointer tracking, injects the SVG
 function initLiquidGlass(): void
 ```
 
-Bootstraps the entire library. Must be called once before any glass elements appear interactive. Safe to call multiple times — subsequent invocations before `destroyLiquidGlass()` are silent no-ops.
+Bootstraps the entire library. Safe to call multiple times — subsequent calls before `destroyLiquidGlass()` are silent no-ops.
 
 **What it does internally:**
-1. Registers CSS Houdini custom properties (`--lg-mx`, `--lg-my`, `--lg-irid`)
+1. Registers six CSS Houdini custom properties
 2. Probes WebGL to detect GPU tier
-3. Injects the SVG `<filter>` into `document.body`
+3. Injects the SVG `<filter>` bank into `document.body`
 4. Injects the library stylesheet into `document.head`
-5. Attaches pointer listeners to all existing `.lg` elements
-6. Starts a `MutationObserver` to handle future DOM additions
+5. Attaches spring physics, ResizeObserver, and caustic canvas to all existing `.lg` elements
+6. Starts the `MutationObserver` for future DOM additions
+7. Starts the `requestAnimationFrame` physics loop
+8. Registers `DeviceOrientationEvent` listener (mobile gyroscope)
 
 ```js
-import { initLiquidGlass } from 'liquid-glass';
-
-// At app startup:
+import { initLiquidGlass } from './liquid-glass.js';
 initLiquidGlass();
-
-// If the DOM isn't ready yet, the library waits for DOMContentLoaded automatically.
 ```
 
 ---
@@ -163,24 +213,13 @@ initLiquidGlass();
 function destroyLiquidGlass(): void
 ```
 
-Full teardown. Disconnects the `MutationObserver`, removes all pointer event listeners, removes the injected `<style>` and `<svg>` elements, and resets all internal state — including the GPU tier cache.
-
-After calling this, `initLiquidGlass()` can be called again from a clean slate.
+Full teardown. Cancels the rAF loop, disconnects the `MutationObserver`, detaches all element state (springs, ResizeObservers, listeners, caustic canvases), removes the injected `<style>`, `<svg>`, and WebGL backend canvas, and resets all module state including the GPU tier cache.
 
 ```js
-import { initLiquidGlass, destroyLiquidGlass } from 'liquid-glass';
-
-initLiquidGlass();
-
-// Later, e.g. on route change in a SPA:
+// On SPA route change:
 destroyLiquidGlass();
-
-// Re-init for the new view:
-initLiquidGlass();
+initLiquidGlass(); // fresh init for the new view
 ```
-
-> **When do you need this?**  
-> In most apps, you'll never call it. It's primarily useful in SPAs where you want to completely swap rendering contexts, or in test environments where you need a fresh state between test cases.
 
 ---
 
@@ -190,29 +229,18 @@ initLiquidGlass();
 function wrapWithDistortion(el: HTMLElement): WrapResult
 
 interface WrapResult {
-  wrapper: HTMLDivElement;   // The .lg-outer container
-  unwrap:  () => void;       // Restores original DOM position
+  wrapper: HTMLDivElement;
+  unwrap:  () => void;
 }
 ```
 
-Wraps an existing element in a `.lg-outer` distortion container. The distortion SVG filter is applied at the `lg-outer` level rather than directly on `.lg` because SVG filters need a containing element with overflow to avoid clipping the distorted edges.
-
-The wrapper receives an appropriate display class (`flex`, `grid`, or `block`) automatically, inferred from the element's computed `display` style.
+Wraps an element in a `.lg-outer` chromatic-aberration container. The SVG filter is applied at the wrapper level so distorted edges aren't clipped. The wrapper's `display` mode is inferred automatically from the element's computed style.
 
 ```js
-import { wrapWithDistortion } from 'liquid-glass';
-
-const card = document.querySelector('.my-card');
-const { wrapper, unwrap } = wrapWithDistortion(card);
-
-// The DOM is now: .lg-outer > .my-card
-
-// To undo:
-unwrap();
-// The DOM is restored: .my-card is back in its original position
+const { wrapper, unwrap } = wrapWithDistortion(document.querySelector('.my-card'));
+// Later:
+unwrap(); // restores exact original DOM position
 ```
-
-> **Note:** The `unwrap` closure captures `parentNode` and `nextSibling` at wrap time, so it can restore the exact original position even if siblings have changed.
 
 ---
 
@@ -222,28 +250,13 @@ unwrap();
 function createGrainLayer(): HTMLDivElement
 ```
 
-Creates a `<div class="lg-grain">` element — the animated film-grain overlay. Append it as the **first child** of any `.lg` element.
-
-The grain is a tiny inline SVG noise texture that steps through 8 random offsets at 0.14 s intervals, simulating the flickering grain of analogue film.
+Creates a `<div class="lg-grain">` animated film-grain overlay. Prepend it as the first child of any `.lg` element. The library inserts one automatically on `_attach` if none is found.
 
 ```js
-import { initLiquidGlass, createGrainLayer } from 'liquid-glass';
-
-initLiquidGlass();
-
-const card = document.querySelector('.my-card');
-card.classList.add('lg');
-card.prepend(createGrainLayer());
+const el = document.createElement('div');
+el.className = 'lg lg-card lg-interactive';
+el.prepend(createGrainLayer());
 ```
-
-> When using `.lg` in HTML directly (rather than creating elements in JS), you can also add the grain in markup:
->
-> ```html
-> <div class="lg">
->   <div class="lg-grain"></div>
->   <!-- your content -->
-> </div>
-> ```
 
 ---
 
@@ -251,98 +264,122 @@ card.prepend(createGrainLayer());
 
 ```ts
 function createReplyQuote(
-  sender:  string,
-  text:    string,
-  isOwn?:  boolean,       // default: false
-  onClick?: (() => void) | null  // default: null
+  sender:   string,
+  text:     string,
+  isOwn?:   boolean,          // default: false
+  onClick?: (() => void) | null
 ): HTMLDivElement
 ```
 
-Creates a fully styled reply-quote bubble for messaging interfaces. The returned element is a `.lg.lg-reply.lg-interactive` div that includes:
-
-- A grain layer
-- A `.lg-sender` span (author name)
-- A `.lg-text` span (message preview)
-- Optional click handler (propagation is stopped internally)
-- Pointer tracking attached immediately
+Creates a fully-configured reply-quote bubble for messaging UIs. The returned element is a `.lg.lg-reply.lg-interactive` div with grain layer, sender span, text span, optional click handler, and spring physics attached immediately.
 
 ```js
-import { createReplyQuote } from 'liquid-glass';
-
-// Received message style (light iridescent)
 const quote = createReplyQuote(
   'Alice',
-  'Are you coming to the meeting at 3?',
+  'Are you coming to the meeting?',
   false,
   () => scrollToMessage('msg-42')
 );
-
-// Own message style (purple-tinted)
-const ownQuote = createReplyQuote(
-  'You',
-  'Yes, I\'ll be there!',
-  true
-);
-
-messageInput.prepend(quote);
+inputArea.prepend(quote);
 ```
 
-**`isOwn: true`** applies the `.lg-own` modifier which shifts the colour palette to a purple/violet tint — matching the "sent by me" convention in messaging apps.
+**`isOwn: true`** applies the `.lg-own` purple-tinted variant.
+
+---
+
+### `attachElement()`
+
+```ts
+function attachElement(el: HTMLElement): void
+```
+
+Manually attaches the full liquid-glass effect (springs, caustic canvas, ResizeObserver, listeners) to a specific element. Useful when adding `.lg` elements to Shadow DOM or detached trees where the `MutationObserver` won't fire. Requires `initLiquidGlass()` to have been called first.
+
+```js
+const el = document.createElement('div');
+el.className = 'lg lg-interactive';
+shadowRoot.appendChild(el);
+attachElement(el);
+```
+
+---
+
+### `detachElement()`
+
+```ts
+function detachElement(el: HTMLElement): void
+```
+
+Manually removes all liquid-glass machinery from an element, restoring it to its pre-attach state. Normally not needed — the `MutationObserver` handles cleanup automatically.
+
+---
+
+### `getGpuTier()`
+
+```ts
+function getGpuTier(): 'low' | 'mid' | 'high'
+```
+
+Returns the GPU performance tier detected on the current device. Useful for making independent quality decisions in your own code.
+
+```js
+if (getGpuTier() === 'high') {
+  // enable additional particle effects
+}
+```
+
+---
+
+### `version()`
+
+```ts
+function version(): '1.1.0'
+```
+
+Returns the library version string.
 
 ---
 
 ## CSS Classes
 
-Apply these classes directly in HTML for zero-JS usage (after calling `initLiquidGlass()`).
-
 ### `.lg`
 
-The core glass surface. Apply to any block-level or inline element.
+The core glass surface. Apply to any element.
 
 ```html
 <div class="lg">Your content</div>
 ```
 
-**Includes:**
-- Frosted glass `backdrop-filter`
-- Layered `box-shadow` (inner rim light + outer depth + ambient glow)
-- Asymmetric borders (brighter top/left, dimmer right/bottom — simulating top light)
-- `::before` pointer-spotlight overlay
-- `::after` iridescent conic-gradient overlay
-- `--lg-irid` rotation animation
+Includes: frosted `backdrop-filter`, layered `box-shadow`, asymmetric borders, `::before` spring-driven spotlight, `::after` iridescent conic-gradient, `lg-breathe` border animation, WebGL caustic overlay canvas.
 
 ---
 
 ### `.lg-interactive`
 
-Adds hover and active state responses. Use on clickable glass elements (buttons, cards, links).
+Adds hover and active state responses. Use on clickable elements.
 
 ```html
-<div class="lg lg-interactive" role="button" tabindex="0">
-  Click me
-</div>
+<div class="lg lg-interactive" role="button" tabindex="0">Click me</div>
 ```
 
-**Hover:** lifts 1.5 px, intensifies shadow and border brightness.  
-**Active:** compresses 0.5 px down, scales to 99.2%, snap-fast 80 ms transition.
+**Hover:** caustic canvas fades in (opacity 0 → 0.32), shadows deepen, background brightens.
+**Active:** compresses 1 px down, scales to 99.1%, 70 ms snap transition.
 
 ---
 
 ### `.lg-own`
 
-Purple-tinted variant. Use for "sent by current user" bubbles in chat UIs.
+Purple-tinted variant for "sent by current user" chat bubbles.
 
 ```html
-<div class="lg lg-own">
-  Your message here
-</div>
+<div class="lg lg-own">Your message</div>
 ```
 
 ---
 
 ### `.lg-reply`
 
-Reply-quote layout inside a message bubble. Usually applied together with `.lg` and `.lg-interactive`.
+Reply-quote layout. Column flex, left accent bevel, compact padding.
 
 ```html
 <div class="lg lg-reply lg-interactive">
@@ -354,117 +391,143 @@ Reply-quote layout inside a message bubble. Usually applied together with `.lg` 
 
 ---
 
-### `.lg-outer`
+### `.lg-pill`
 
-The distortion wrapper. You normally don't add this by hand — use `wrapWithDistortion()`. But you can apply it manually if you need to:
+Full-radius pill shape. Excludes breathing animation.
 
 ```html
-<div class="lg-outer">
+<div class="lg lg-pill lg-interactive">Tag</div>
+```
+
+---
+
+### `.lg-card`
+
+Large card variant with 22 px radius and 20 px padding.
+
+```html
+<div class="lg lg-card">Card content</div>
+```
+
+---
+
+### `.lg-fab`
+
+Circular floating action button, 56×56 px.
+
+```html
+<div class="lg lg-fab lg-interactive">＋</div>
+```
+
+---
+
+### `.lg-outer`
+
+Distortion wrapper. Normally created by `wrapWithDistortion()`. Add `.block`, `.flex`, or `.grid` to control its display mode.
+
+```html
+<div class="lg-outer block">
   <div class="lg">Content</div>
 </div>
 ```
-
-Add `.block`, `.flex`, or `.grid` to control the wrapper's display mode.
 
 ---
 
 ### `.lg-grain`
 
-The film-grain overlay. Must be the **first child** inside `.lg`.
-
-```html
-<div class="lg">
-  <div class="lg-grain"></div>
-  <p>Content goes here</p>
-</div>
-```
+Animated film-grain overlay. Must be the **first child** inside `.lg`.
 
 ---
 
 ## GPU Tier System
 
-At `initLiquidGlass()` time, the library creates a temporary WebGL context, reads the `UNMASKED_RENDERER_WEBGL` string from `WEBGL_debug_renderer_info`, then immediately destroys the context.
+At init time the library creates a temporary WebGL context, reads the `UNMASKED_RENDERER_WEBGL` renderer string, then immediately destroys the context.
 
-| Tier | Detected when | SVG filter |
-|------|---------------|-----------|
-| `low` | Old Adreno (3xx/4xx), Mali-4/T, PowerVR SGX, no WebGL support | Passthrough (no distortion) |
-| `mid` | Adreno 5xx/6xx, Mali-G5x/G7x, Apple GPU with fewer than 10 cores | Full filter |
-| `high` | Desktop GPUs, Apple GPU ≥ 10-core, unknown desktop renderers | Full filter |
+| Tier | Detected when | WebGL caustics | SVG filter |
+|------|---------------|---------------|------------|
+| `low` | Old Adreno (2xx–4xx), Mali-4/T, PowerVR SGX, no WebGL | Disabled | Passthrough |
+| `mid` | Adreno 5xx/6xx, Mali-G5x/G7x, Apple GPU < 10-core | Enabled (reduced scale) | Full (scale 0.9 / 0.6 / 0.3) |
+| `high` | Desktop GPUs, Apple GPU ≥ 10-core, unknown desktop | Enabled (full quality) | Full (scale 1.6 / 1.0 / 0.6) |
 
-The **full filter** uses an animated `feTurbulence` (changing `baseFrequency` and `seed` over time) feeding three separate `feDisplacementMap` passes — one per colour channel — to produce chromatic aberration. This is GPU-intensive; the adaptive tier system prevents it from impacting low-end users.
-
-If WebGL is unavailable (e.g. blocked by privacy settings), the library falls back to `low` tier silently.
+A maximum of **12 elements** may have an active WebGL caustic canvas simultaneously. Elements beyond this quota receive CSS-only rendering automatically.
 
 ---
 
 ## CSS Custom Properties
 
-These properties drive the pointer-tracking spotlight and iridescence. They are registered as CSS Houdini `@property` values, which means the browser can interpolate them directly — enabling smooth, performant transitions without JavaScript animation loops.
+Six typed Houdini properties are registered, enabling smooth browser-native interpolation of all spring-driven values.
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `--lg-mx` | `<percentage>` | `50%` | Horizontal cursor position within the element |
-| `--lg-my` | `<percentage>` | `30%` | Vertical cursor position (default biased toward top) |
-| `--lg-irid` | `<angle>` | `0deg` | Current rotation of the iridescent conic-gradient |
+| Property | Type | Default | Updated by |
+|----------|------|---------|------------|
+| `--lg-mx` | `<percentage>` | `50%` | Cursor X spring |
+| `--lg-my` | `<percentage>` | `30%` | Cursor Y spring |
+| `--lg-irid` | `<angle>` | `0deg` | CSS `lg-irid-spin` animation |
+| `--lg-hover` | `<number>` | `0` | Hover spring (0 → 1) |
+| `--lg-tx` | `<number>` | `0` | Tilt X spring (−1 → 1) |
+| `--lg-ty` | `<number>` | `0` | Tilt Y spring (−1 → 1) |
 
 You can override them per-element to pre-position the spotlight:
 
 ```css
 .my-hero-card {
-  --lg-mx: 30%;
-  --lg-my: 20%;
+  --lg-mx: 25%;
+  --lg-my: 15%;
 }
 ```
 
-Or animate them yourself:
+---
 
-```css
-.my-card {
-  animation: spotlight-sweep 4s ease-in-out infinite alternate;
-}
-@keyframes spotlight-sweep {
-  from { --lg-mx: 20%; }
-  to   { --lg-mx: 80%; }
-}
-```
+## Visual Layer Stack
 
-> **Fallback:** In browsers without Houdini `CSS.registerProperty` support, the variables still work — you just lose the smooth CSS-native transition on cursor movement (it will still update, just without interpolation).
+Inside every `.lg` element, effects are composited in z-index order:
+
+| z-index | Element | Effect |
+|---------|---------|--------|
+| 1 | `::before` | Spring-driven spotlight radial gradient |
+| 2 | `::after` | Rotating iridescent conic-gradient |
+| 3 | `.lg-grain` | Animated film-grain (soft-light blend) |
+| 4 | `.lg-caustic-canvas` | WebGL caustics (screen blend, hover-revealed) |
+| 5 | Content children | Text, icons, interactive elements |
 
 ---
 
 ## Accessibility
 
-- **`prefers-reduced-motion`** — when this media query is active, all CSS animations (`lg-irid-spin`, `lg-grain-shift`) are disabled, `transition` is set to `none`, and `will-change` is cleared from the grain layer. The glass surfaces still render; only motion is removed.
+- **`prefers-reduced-motion`** — all CSS animations (`lg-irid-spin`, `lg-grain-shift`, `lg-breathe`) are disabled, transitions set to `none`, `will-change` cleared, caustic canvas hidden. Glass surfaces still render; only motion is removed.
+- **SVG filter** — disabled (`filter: none`) under reduced-motion.
+- **Pointer events** — `::before`, `::after`, `.lg-grain`, and `.lg-caustic-canvas` all have `pointer-events: none`.
+- **Semantic HTML** — the library imposes no semantic structure. Use proper `role`, `aria-*`, and `tabindex` on your elements.
+- **Focus** — add a visible focus ring yourself:
 
-- **Pointer events** — `.lg-grain`, `::before`, and `::after` all have `pointer-events: none`, so overlays never interfere with interaction.
-
-- **Semantic HTML** — the library imposes no semantic structure. You control the markup. Use proper `role`, `aria-*`, and `tabindex` attributes on your elements.
-
-- **Focus** — `.lg-interactive` has no custom focus style by default. You should add one:
-  ```css
-  .lg.lg-interactive:focus-visible {
-    outline: 2px solid rgba(255, 255, 255, 0.6);
-    outline-offset: 3px;
-  }
-  ```
+```css
+.lg.lg-interactive:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.65);
+  outline-offset: 3px;
+}
+```
 
 ---
 
 ## Performance Notes
 
-**What's on the GPU:**
-- `backdrop-filter: blur()` — the most expensive property. Avoid nesting `.lg` elements.
-- `filter: url(#lg-distort)` on `.lg-outer` — the SVG displacement filter composites the entire subtree. One per card, not one per page.
-- `will-change: transform` — promotes `.lg` to its own composite layer.
+**WebGL caustics:**
+- One shared GL context for the entire page — never hits driver limits.
+- Backend canvas is resized to match each element before rendering, then blitted via `drawImage`. Resize is cheap when dimensions are unchanged (the common case).
+- Quota of 12 active caustic elements prevents GPU memory over-commitment.
 
-**What's on the CPU:**
-- `MutationObserver` — low-overhead; only fires on DOM mutations.
-- `pointermove` — runs at pointer rate (~60–125 Hz). The handler is two divisions and two `setProperty` calls — negligible.
+**Spring physics rAF loop:**
+- Runs at native frame rate (~60–120 Hz).
+- Each element advances 5 springs and sets 5 CSS custom properties per frame — well within the budget of a 60 fps frame.
+- The loop is started once by `initLiquidGlass()` and shared across all elements.
+
+**`backdrop-filter`:**
+- The most expensive property in the stack. **Never nest `.lg` inside `.lg`** — stacking backdrop filters is extremely costly.
+- Limit the number of simultaneously visible `.lg` elements on mobile.
 
 **Recommendations:**
-- Keep `.lg` elements out of scroll-heavy lists (use virtualisation).
-- Don't nest `.lg` inside `.lg` — stacking `backdrop-filter` is extremely expensive.
-- On very long pages with many glass cards, consider calling `wrapWithDistortion()` only on cards in the viewport (IntersectionObserver + lazy wrapping).
+- Keep `.lg` elements out of high-frequency scroll lists (use virtualisation).
+- On very long pages, consider `IntersectionObserver` + lazy `attachElement()` / `detachElement()` to pause physics for off-screen elements.
+- Avoid animating `width` or `height` on `.lg` elements — triggering layout forces the ResizeObserver to resize the caustic canvas every frame.
 
 ---
 
@@ -474,7 +537,7 @@ Or animate them yourself:
 
 ```html
 <div class="lg-outer">
-  <div class="lg" style="padding: 28px; border-radius: 18px; color: white; max-width: 300px;">
+  <div class="lg lg-card" style="color: white; max-width: 300px;">
     <div class="lg-grain"></div>
     <h3 style="margin: 0 0 8px;">Weekly Summary</h3>
     <p style="margin: 0; opacity: 0.7;">12 tasks completed · 3 in progress</p>
@@ -488,9 +551,8 @@ Or animate them yourself:
 
 ```html
 <div class="lg-outer">
-  <button class="lg lg-interactive"
-          style="padding: 12px 28px; font-size: 15px; font-weight: 600;
-                 color: white; border: none; border-radius: 100px; cursor: pointer;">
+  <button class="lg lg-pill lg-interactive"
+          style="font-size: 15px; font-weight: 600; color: white; border: none; cursor: pointer;">
     <div class="lg-grain"></div>
     Get Started
   </button>
@@ -499,45 +561,70 @@ Or animate them yourself:
 
 ---
 
-### Chat bubble with reply
+### Chat bubble with reply quote
 
 ```js
-import { initLiquidGlass, createReplyQuote, createGrainLayer } from 'liquid-glass';
+import { initLiquidGlass, createReplyQuote, createGrainLayer } from './liquid-glass.js';
 
 initLiquidGlass();
 
 function createBubble(text, isOwn = false) {
   const bubble = document.createElement('div');
   bubble.className = `lg${isOwn ? ' lg-own' : ''}`;
-  bubble.style.cssText = 'padding: 10px 14px; max-width: 280px; color: white; border-radius: 18px;';
+  bubble.style.cssText =
+    'padding: 10px 14px; max-width: 280px; color: white; border-radius: 18px;';
 
-  const reply = createReplyQuote('Alice', 'Original message…', false);
-  const grain = createGrainLayer();
-  const content = document.createElement('p');
-  content.style.margin = '6px 0 0';
-  content.textContent = text;
+  bubble.append(
+    createGrainLayer(),
+    createReplyQuote('Alice', 'Original message…', isOwn),
+    Object.assign(document.createElement('p'), {
+      textContent: text,
+      style: 'margin: 6px 0 0;'
+    })
+  );
 
-  bubble.append(grain, reply, content);
   return bubble;
 }
 
-document.querySelector('#chat').append(
-  createBubble('Got your message!', true)
-);
+document.querySelector('#chat').append(createBubble('Got your message!', true));
 ```
 
 ---
 
-### SPA lifecycle (React-style pseudo-code)
+### Shadow DOM (manual attach)
 
 ```js
-import { initLiquidGlass, destroyLiquidGlass } from 'liquid-glass';
+import { initLiquidGlass, attachElement, detachElement } from './liquid-glass.js';
 
-// On mount:
-useEffect(() => {
-  initLiquidGlass();
-  return () => destroyLiquidGlass();   // Clean up on unmount
-}, []);
+initLiquidGlass();
+
+const host = document.createElement('div');
+const shadow = host.attachShadow({ mode: 'open' });
+
+const el = document.createElement('div');
+el.className = 'lg lg-interactive';
+el.textContent = 'Inside shadow DOM';
+shadow.appendChild(el);
+
+// MutationObserver doesn't see inside shadow DOM — attach manually:
+attachElement(el);
+
+// On removal:
+detachElement(el);
+```
+
+---
+
+### SPA lifecycle
+
+```js
+import { initLiquidGlass, destroyLiquidGlass } from './liquid-glass.js';
+
+// React / Vue / Svelte — on mount:
+initLiquidGlass();
+
+// On unmount / route change:
+destroyLiquidGlass();
 ```
 
 ---
@@ -546,59 +633,71 @@ useEffect(() => {
 
 | Browser | Version | Notes |
 |---------|---------|-------|
-| Chrome / Edge | 94+ | Full support including Houdini |
-| Firefox | 103+ | Full support; no Houdini (smooth transitions degrade gracefully) |
-| Safari | 15.4+ | Full support including Houdini |
-| Chrome Android | 94+ | GPU tier may resolve to `low`; filter disabled |
-| Safari iOS | 15.4+ | `backdrop-filter` fully supported |
+| Chrome / Edge | 94+ | Full support including Houdini and WebGL2 |
+| Firefox | 103+ | Full support; no Houdini (degrades gracefully) |
+| Safari | 15.4+ | Full support including Houdini and WebGL2 |
+| Chrome Android | 94+ | GPU tier may resolve to `low`; caustics disabled |
+| Safari iOS | 15.4+ | Full support; gyroscope parallax active |
 
-> `backdrop-filter` is the hard requirement. All modern evergreen browsers support it. IE and legacy Edge do not.
+`backdrop-filter` is the hard requirement for the glass material. All modern evergreen browsers support it.
+
+WebGL2 is required for caustics. If unavailable, the library falls back to CSS-only rendering transparently.
 
 ---
 
 ## FAQ
 
-**Q: The glass looks opaque / I can't see through it.**  
-A: `backdrop-filter` only blurs content *behind* the element in the stacking context. Your `.lg` element needs to have something visually interesting behind it — a gradient background, an image, or other content. A plain white page will look like frosted nothing.
+**Q: The glass looks opaque / I can't see through it.**
+A: `backdrop-filter` only blurs content *behind* the element in the compositing stack. Your `.lg` element needs something visually rich behind it — a gradient, an image, or other content.
 
 ---
 
-**Q: The distortion effect isn't showing.**  
-A: The SVG filter is injected into `document.body`. If your app uses Shadow DOM or an iframe, the filter won't be reachable from inside it. In those cases, inject the SVG filter manually into the shadow root or iframe document.
+**Q: The caustics aren't appearing.**
+A: Caustics are hidden by default and only reveal on hover (opacity 0 → 0.32) for elements with `.lg-interactive`. On `low` GPU tier they are disabled entirely. Check `getGpuTier()` to confirm.
 
 ---
 
-**Q: I'm seeing a flash of unstyled glass on load.**  
-A: Call `initLiquidGlass()` before your content renders, or add `.lg` elements to the DOM only after calling `init`. The `MutationObserver` handles post-init additions automatically.
+**Q: The distortion effect isn't showing.**
+A: The SVG filter is injected into `document.body`. It won't be reachable from Shadow DOM or iframes — inject the SVG manually into those contexts if needed.
 
 ---
 
-**Q: Can I use `.lg` on `<button>` or `<a>` directly?**  
-A: Yes. The library is class-based and imposes no element restrictions. Just make sure to reset browser default button/anchor styles as needed.
+**Q: Can I disable the breathing animation on a specific element?**
+A: Override `animation` directly:
 
----
-
-**Q: How do I customise the blur amount?**  
-A: Override `backdrop-filter` directly on your element:
 ```css
 .my-card.lg {
-  backdrop-filter: blur(8px) saturate(140%);
-  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  animation: lg-irid-spin 15s linear infinite;
 }
 ```
 
 ---
 
-**Q: Can I change the border-radius?**  
-A: Yes — override `border-radius` on `.lg` or inline:
-```html
-<div class="lg" style="border-radius: 100px;">Pill shape</div>
+**Q: Voice message bubbles look like a blob of glass.**
+A: Add `.vb-wrap` to your voice bubble element — the library explicitly excludes `.vb-wrap` from the `lg-breathe` animation and constrains its width to `fit-content`.
+
+---
+
+**Q: How do I use this in a high-frequency scroll list?**
+A: Don't apply `.lg` directly to list items. Use `attachElement()` / `detachElement()` in an `IntersectionObserver` callback to activate and deactivate the effect only for visible items.
+
+---
+
+**Q: Can I change the blur amount?**
+A: Override `backdrop-filter` on your element:
+
+```css
+.my-card.lg {
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+}
 ```
 
 ---
 
 ## License
-Licensed under the [Apache License 2.0](LICENSE).<br>
+
+Licensed under the [Apache License 2.0](LICENSE).
 © 2026 Boris Maltsev.
 
 ---
