@@ -133,7 +133,7 @@ const MAX_DT = 0.05;
  * Maximum number of elements allowed to have a WebGL caustic canvas.
  * Further elements fall back to CSS-only rendering.
  */
-const MAX_WEBGL_ELEMENTS = 12;
+const MAX_WEBGL_ELEMENTS = 32;
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -987,7 +987,7 @@ function _buildCSS() {
 }
 
 /* On hover: show caustics very gently so they read as shimmer, not zebra */
-.lg.lg-interactive:hover .lg-caustic-canvas { opacity: 0.32; }
+.lg.lg-interactive:hover .lg-caustic-canvas { opacity: 0.02; }
 
 
 /* ── Child content must sit above all effect layers ─────────────────── */
@@ -1313,10 +1313,7 @@ function _attach(el) {
     const hoverSpring = _createSpring(0);
     const tiltX       = _createSpring(0);
     const tiltY       = _createSpring(0);
-
-    // ── Declare `es` before handlers so closures reference a defined binding.
-    // The object is assigned below after the handlers are defined; by the time
-    // any pointer event fires the assignment will have completed.
+    
     /** @type {ElementState} */
     let es;
 
@@ -1811,8 +1808,8 @@ export function getGpuTier() {
 /**
  * Returns the library version string.
  *
- * @returns {'1.1.0'}
+ * @returns {'1.1.1'}
  */
 export function version() {
-    return '1.1.0';
+    return '1.1.1';
 }
