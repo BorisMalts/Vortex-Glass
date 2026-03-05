@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Liquid Glass · Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-1: #060412;
+            --bg-2: #0e0825;
+            --bg-3: #0a1a2e;
+            --accent: #a78bfa;
+            --accent-2: #38bdf8;
+            --accent-3: #f472b6;
+            --text: rgba(255,255,255,0.92);
+            --text-dim: rgba(255,255,255,0.45);
+            --font-display: 'DM Serif Display', Georgia, serif;
+            --font-mono: 'DM Mono', monospace;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg-1);
+            color: var(--text);
+            font-family: var(--font-mono);
+            font-weight: 300;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Animated background ── */
+        .bg-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .bg-layer::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(99,40,180,0.28) 0%, transparent 60%),
+                    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(14,80,140,0.22) 0%, transparent 55%),
+                    radial-gradient(ellipse 50% 40% at 60% 30%, rgba(180,40,100,0.12) 0%, transparent 50%),
+                    linear-gradient(160deg, #060412 0%, #0e0825 40%, #0a1a2e 70%, #060412 100%);
+        }
+        .bg-layer::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                    radial-gradient(circle at 15% 85%, rgba(120,60,200,0.15) 0%, transparent 40%),
+                    radial-gradient(circle at 85% 15%, rgba(20,100,180,0.12) 0%, transparent 40%);
+            animation: bg-drift 18s ease-in-out infinite alternate;
+        }
+        @keyframes bg-drift {
+            from { transform: scale(1) translate(0,0); }
+            to   { transform: scale(1.08) translate(-2%, 1.5%); }
+        }
+
+        /* ── Floating orbs ── */
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.18;
+            pointer-events: none;
+            z-index: 0;
+            animation: orb-float var(--dur, 20s) ease-in-out infinite alternate;
+        }
+        .orb-1 { width: 500px; height: 500px; background: #7c3aed; top: -100px; left: -100px; --dur: 22s; }
+        .orb-2 { width: 400px; height: 400px; background: #0ea5e9; bottom: -80px; right: -80px; --dur: 28s; }
+        .orb-3 { width: 300px; height: 300px; background: #ec4899; top: 40%; left: 50%; --dur: 19s; opacity: 0.10; }
+        @keyframes orb-float {
+            from { transform: translate(0, 0) scale(1); }
+            to   { transform: translate(40px, -30px) scale(1.1); }
+        }
+
+        /* ── Grid overlay ── */
+        .grid-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background-image:
+                    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+            background-size: 48px 48px;
+        }
+
+        /* ── Layout ── */
+        .page {
+            position: relative;
+            z-index: 1;
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 32px 120px;
+        }
+
+        /* ── Hero ── */
+        .hero {
+            padding: 120px 0 80px;
+            text-align: center;
+        }
+        .hero-label {
+            display: inline-block;
+            font-size: 10px;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: var(--accent);
+            border: 1px solid rgba(167,139,250,0.3);
+            padding: 5px 14px;
+            border-radius: 999px;
+            margin-bottom: 28px;
+            backdrop-filter: blur(8px);
+        }
+        .hero h1 {
+            font-family: var(--font-display);
+            font-size: clamp(48px, 8vw, 88px);
+            line-height: 1.05;
+            letter-spacing: -0.02em;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #fff 30%, rgba(167,139,250,0.8) 70%, rgba(56,189,248,0.7) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero h1 em {
+            font-style: italic;
+            background: linear-gradient(135deg, rgba(244,114,182,0.9) 0%, rgba(167,139,250,0.9) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero-sub {
+            font-size: 14px;
+            color: var(--text-dim);
+            letter-spacing: 0.04em;
+            line-height: 1.7;
+            max-width: 480px;
+            margin: 0 auto 48px;
+        }
+        .hero-badges {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 64px;
+        }
+        .badge {
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: var(--text-dim);
+        }
+
+        /* ── Section headings ── */
+        .section {
+            margin-bottom: 72px;
+        }
+        .section-header {
+            display: flex;
+            align-items: baseline;
+            gap: 16px;
+            margin-bottom: 32px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .section-title {
+            font-family: var(--font-display);
+            font-size: 22px;
+            letter-spacing: -0.01em;
+            color: rgba(255,255,255,0.88);
+        }
+        .section-tag {
+            font-size: 10px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--accent);
+            opacity: 0.7;
+        }
+
+        /* ── Demo areas ── */
+        .demo-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
+        }
+        .demo-center {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+
+        /* ── Glass content styles ── */
+        .card-body {
+            color: rgba(255,255,255,0.88);
+            min-width: 220px;
+        }
+        .card-body h3 {
+            font-family: var(--font-display);
+            font-size: 20px;
+            margin-bottom: 8px;
+            font-weight: 400;
+        }
+        .card-body p {
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+            line-height: 1.7;
+        }
+        .card-body .stat {
+            margin-top: 16px;
+            display: flex;
+            gap: 20px;
+        }
+        .card-body .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .card-body .stat-num {
+            font-size: 22px;
+            font-family: var(--font-display);
+            color: var(--accent);
+        }
+        .card-body .stat-label {
+            font-size: 9px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        .pill-text {
+            font-size: 13px;
+            letter-spacing: 0.06em;
+            color: rgba(255,255,255,0.88);
+        }
+
+        .fab-icon {
+            font-size: 22px;
+            line-height: 1;
+        }
+
+        /* ── Chat demo ── */
+        .chat-wrap {
+            max-width: 360px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .chat-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+        }
+        .chat-row.right {
+            flex-direction: row-reverse;
+        }
+        .chat-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .chat-bubble {
+            padding: 10px 14px;
+            max-width: 260px;
+            color: rgba(255,255,255,0.88);
+        }
+        .chat-bubble p {
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .chat-bubble .time {
+            font-size: 9px;
+            color: rgba(255,255,255,0.35);
+            margin-top: 4px;
+            letter-spacing: 0.06em;
+        }
+
+        /* ── Tier display ── */
+        .tier-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+        }
+        .tier-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ade80;
+            box-shadow: 0 0 10px #4ade80;
+            flex-shrink: 0;
+        }
+        .tier-label {
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.5);
+        }
+        .tier-value {
+            font-family: var(--font-display);
+            font-size: 18px;
+            color: #4ade80;
+        }
+
+        /* ── Code block ── */
+        .code-block {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 20px 24px;
+            font-size: 12px;
+            line-height: 1.8;
+            color: rgba(255,255,255,0.55);
+            overflow-x: auto;
+        }
+        .code-block .kw  { color: #c792ea; }
+        .code-block .fn  { color: #82aaff; }
+        .code-block .str { color: #c3e88d; }
+        .code-block .cm  { color: rgba(255,255,255,0.22); }
+
+        /* ── Destroy/re-init controls ── */
+        .controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 16px;
+        }
+        .ctrl-btn {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 8px 18px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.7);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .ctrl-btn:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.22);
+            color: #fff;
+        }
+        .ctrl-btn.danger { border-color: rgba(244,114,182,0.3); color: rgba(244,114,182,0.8); }
+        .ctrl-btn.success { border-color: rgba(74,222,128,0.3); color: rgba(74,222,128,0.8); }
+
+        .status-log {
+            font-size: 11px;
+            color: var(--accent);
+            letter-spacing: 0.06em;
+            min-height: 18px;
+            margin-top: 8px;
+        }
+
+        /* ── Footer ── */
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Divider ── */
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+            margin: 0 0 72px;
+        }
+
+        /* ── Info strip ── */
+        .info-strip {
+            display: flex;
+            gap: 0;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 32px;
+        }
+        .info-cell {
+            flex: 1;
+            padding: 16px 20px;
+            border-right: 1px solid rgba(255,255,255,0.06);
+            background: rgba(255,255,255,0.02);
+        }
+        .info-cell:last-child { border-right: none; }
+        .info-cell .ic-label {
+            font-size: 9px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+        .info-cell .ic-value {
+            font-size: 13px;
+            color: rgba(255,255,255,0.8);
+        }
+    </style>
+</head>
+<body>
+
+<!-- Background layers -->
+<div class="bg-layer"></div>
+<div class="grid-overlay"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="page">
+
+    <!-- ── Hero ── -->
+    <header class="hero">
+        <div class="hero-label">v1.1.1 · Interactive Demo</div>
+        <h1>Liquid <em>Glass</em></h1>
+        <p class="hero-sub">
+            WebGL2 caustics · Spring-physics cursor · Schlick Fresnel edge ·
+            Thin-film iridescence · GPU-adaptive rendering
+        </p>
+        <div class="hero-badges">
+            <span class="badge">WebGL2 Caustics</span>
+            <span class="badge">Spring Physics</span>
+            <span class="badge">Chromatic Dispersion</span>
+            <span class="badge">Fresnel Edge</span>
+            <span class="badge">~9kb gzipped</span>
+            <span class="badge">Zero deps</span>
+        </div>
+    </header>
+
+    <!-- ── GPU Info ── -->
+    <div class="info-strip" id="info-strip">
+        <div class="info-cell">
+            <div class="ic-label">GPU Tier</div>
+            <div class="ic-value" id="ic-tier">—</div>
+        </div>
+        <div class="info-cell">
+            <div class="ic-label">Version</div>
+            <div class="ic-value" id="ic-version">—</div>
+        </div>
+        <div class="info-cell">
+            <div class="ic-label">Active Elements</div>
+            <div class="ic-value" id="ic-elements">—</div>
+        </div>
+        <div class="info-cell">
+            <div class="ic-label">Device Pixel Ratio</div>
+            <div class="ic-value" id="ic-dpr">—</div>
+        </div>
+    </div>
+
+    <!-- ── Cards ── -->
+    <section class="section">
+        <div class="section-header">
+            <span class="section-title">Cards</span>
+            <span class="section-tag">.lg.lg-card</span>
+        </div>
+        <div class="demo-grid">
+
+            <div class="lg-outer block">
+                <div class="lg lg-card lg-interactive" id="card-1">
+                    <div class="card-body">
+                        <h3>Caustic Light</h3>
+                        <p>Hover to reveal WebGL2 Voronoi caustics rendered in real-time on a per-element canvas.</p>
+                        <div class="stat">
+                            <div class="stat-item">
+                                <span class="stat-num">9kb</span>
+                                <span class="stat-label">Gzipped</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-num">12</span>
+                                <span class="stat-label">GL quota</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg-outer block">
+                <div class="lg lg-card lg-interactive" id="card-2">
+                    <div class="card-body">
+                        <h3>Spring Physics</h3>
+                        <p>Cursor tracking via mass–damping–stiffness model. Symplectic Euler integration, three spring configs.</p>
+                        <div class="stat">
+                            <div class="stat-item">
+                                <span class="stat-num">180</span>
+                                <span class="stat-label">Stiffness</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-num">18</span>
+                                <span class="stat-label">Damping</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg-outer block">
+                <div class="lg lg-card lg-own lg-interactive" id="card-3">
+                    <div class="card-body">
+                        <h3>Own Message</h3>
+                        <p>Purple-tinted .lg-own variant. Same physics engine, different iridescent conic-gradient palette.</p>
+                        <div class="stat">
+                            <div class="stat-item">
+                                <span class="stat-num" style="color:#c4b5fd">15s</span>
+                                <span class="stat-label">Irid cycle</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-num" style="color:#c4b5fd">9s</span>
+                                <span class="stat-label">Breathe</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ── Pills ── -->
+    <section class="section">
+        <div class="section-header">
+            <span class="section-title">Pills &amp; Chips</span>
+            <span class="section-tag">.lg.lg-pill</span>
+        </div>
+        <div class="demo-row">
+            <div class="lg-outer">
+                <div class="lg lg-pill lg-interactive"><span class="pill-text">WebGL2</span></div>
+            </div>
+            <div class="lg-outer">
+                <div class="lg lg-pill lg-interactive"><span class="pill-text">Caustics</span></div>
+            </div>
+            <div class="lg-outer">
+                <div class="lg lg-pill lg-interactive"><span class="pill-text">Spring Physics</span></div>
+            </div>
+            <div class="lg-outer">
+                <div class="lg lg-pill lg-interactive lg-own"><span class="pill-text">Own Variant</span></div>
+            </div>
+            <div class="lg-outer">
+                <div class="lg lg-pill lg-interactive"><span class="pill-text">Iridescence</span></div>
+            </div>
+        </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ── FABs ── -->
+    <section class="section">
+        <div class="section-header">
+            <span class="section-title">Floating Action Buttons</span>
+            <span class="section-tag">.lg.lg-fab</span>
+        </div>
+        <div class="demo-row">
+            <div class="lg-outer">
+                <div class="lg lg-fab lg-interactive"><span class="fab-icon">＋</span></div>
+            </div>
+            <div class="lg-outer">
+                <div class="lg lg-fab lg-interactive"><span class="fab-icon">⌘</span></div>
+            </div>
+            <div class="lg-outer">
+                <div class="lg lg-fab lg-interactive lg-own"><span class="fab-icon">✦</span></div>
+            </div>
+            <div class="lg-outer">
+                <div class="lg lg-fab lg-interactive"><span class="fab-icon">◈</span></div>
+            </div>
+            <div class="lg-outer">
+                <div class="lg lg-fab lg-interactive"><span class="fab-icon">⟳</span></div>
+            </div>
+        </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ── Chat bubbles ── -->
+    <section class="section">
+        <div class="section-header">
+            <span class="section-title">Chat Bubbles</span>
+            <span class="section-tag">createReplyQuote()</span>
+        </div>
+        <div class="chat-wrap" id="chat-wrap">
+
+            <div class="chat-row">
+                <div class="chat-avatar">A</div>
+                <div class="lg chat-bubble lg-interactive" style="border-radius:18px 18px 18px 4px;">
+                    <p>Did you see the new Liquid Glass demo? The caustics look incredible 🔮</p>
+                    <div class="time">09:41</div>
+                </div>
+            </div>
+
+            <!-- Reply quote injected here by JS -->
+            <div class="chat-row right" id="reply-row" style="display:none">
+                <div class="chat-avatar" style="background:rgba(167,139,250,0.15)">Y</div>
+                <div style="max-width:260px">
+                    <!-- reply quote will be prepended here -->
+                    <div class="lg chat-bubble lg-own lg-interactive" style="border-radius:18px 18px 4px 18px;">
+                        <p>Yeah! WebGL2 Voronoi caustics on every element — the physics feel so natural</p>
+                        <div class="time">09:42</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-row">
+                <div class="chat-avatar">A</div>
+                <div class="lg chat-bubble lg-interactive" style="border-radius:18px 18px 18px 4px;">
+                    <p>And it's 9kb gzipped. Zero dependencies. Someone had an unhealthy obsession with light physics 😄</p>
+                    <div class="time">09:43</div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ── GPU Tier display ── -->
+    <section class="section">
+        <div class="section-header">
+            <span class="section-title">GPU Tier Detection</span>
+            <span class="section-tag">getGpuTier()</span>
+        </div>
+        <div class="demo-center">
+            <div class="lg-outer">
+                <div class="lg lg-card" id="tier-card" style="min-width:240px">
+                    <div class="tier-box">
+                        <div class="tier-dot" id="tier-dot"></div>
+                        <div>
+                            <div class="tier-label">Detected Tier</div>
+                            <div class="tier-value" id="tier-display">detecting…</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ── Lifecycle controls ── -->
+    <section class="section">
+        <div class="section-header">
+            <span class="section-title">Lifecycle API</span>
+            <span class="section-tag">init · destroy · attachElement</span>
+        </div>
+
+        <div class="code-block">
+            <span class="kw">import</span> { <span class="fn">initLiquidGlass</span>, <span class="fn">destroyLiquidGlass</span>, <span class="fn">getGpuTier</span> } <span class="kw">from</span> <span class="str">'./liquid-glass.js'</span>;<br><br>
+            <span class="cm">// Bootstrap once at page load</span><br>
+            <span class="fn">initLiquidGlass</span>();<br><br>
+            <span class="cm">// Teardown on SPA route change</span><br>
+            <span class="fn">destroyLiquidGlass</span>();<br><br>
+            <span class="cm">// Re-init for new view</span><br>
+            <span class="fn">initLiquidGlass</span>();
+        </div>
+
+        <div class="controls">
+            <button class="ctrl-btn danger" id="btn-destroy">destroyLiquidGlass()</button>
+            <button class="ctrl-btn success" id="btn-init">initLiquidGlass()</button>
+            <button class="ctrl-btn" id="btn-tier">getGpuTier()</button>
+            <button class="ctrl-btn" id="btn-version">version()</button>
+        </div>
+        <div class="status-log" id="status-log">Ready.</div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ── Dynamic attach ── -->
+    <section class="section">
+        <div class="section-header">
+            <span class="section-title">Dynamic DOM Injection</span>
+            <span class="section-tag">MutationObserver auto-attach</span>
+        </div>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:20px;line-height:1.7">
+            New <code style="color:var(--accent)">.lg</code> elements added to the DOM are automatically detected
+            by the MutationObserver and receive the full effect without calling any attach function.
+        </p>
+        <div class="controls">
+            <button class="ctrl-btn" id="btn-add-card">+ Inject Card</button>
+            <button class="ctrl-btn" id="btn-add-pill">+ Inject Pill</button>
+            <button class="ctrl-btn danger" id="btn-clear-dynamic">Clear Injected</button>
+        </div>
+        <div id="dynamic-zone" style="display:flex;flex-wrap:wrap;gap:16px;margin-top:24px;min-height:40px;align-items:flex-start"></div>
+    </section>
+
+</div>
+
+<footer>
+    liquid-glass v1.1.1 · WebGL2 Caustics · Spring Physics · Zero Dependencies
+</footer>
+
+<script type="module">
+    import {
+        initLiquidGlass,
+        destroyLiquidGlass,
+        getGpuTier,
+        version,
+        createReplyQuote,
+        createGrainLayer,
+        attachElement,
+    } from './liquid-glass.js';
+
+    // ── Boot ──────────────────────────────────────────────────────────────────
+    initLiquidGlass();
+
+    // ── Info strip ────────────────────────────────────────────────────────────
+    const tier = getGpuTier();
+    document.getElementById('ic-tier').textContent     = tier.toUpperCase();
+    document.getElementById('ic-version').textContent  = version();
+    document.getElementById('ic-dpr').textContent      = (window.devicePixelRatio || 1).toFixed(1) + 'x';
+
+    function countElements() {
+        return document.querySelectorAll('.lg').length;
+    }
+    document.getElementById('ic-elements').textContent = countElements();
+
+    // ── GPU Tier card ─────────────────────────────────────────────────────────
+    const tierDisplay = document.getElementById('tier-display');
+    const tierDot     = document.getElementById('tier-dot');
+    tierDisplay.textContent = tier;
+
+    const tierColors = { high: '#4ade80', mid: '#facc15', low: '#f87171' };
+    const c = tierColors[tier] || '#a78bfa';
+    tierDot.style.background   = c;
+    tierDot.style.boxShadow    = `0 0 10px ${c}`;
+    tierDisplay.style.color    = c;
+
+    // ── Reply quote via createReplyQuote() ───────────────────────────────────
+    const replyRow  = document.getElementById('reply-row');
+    const replyWrap = replyRow.querySelector('div');
+    const quote = createReplyQuote(
+        'Alice',
+        'Did you see the new Liquid Glass demo?',
+        true,
+        () => log('Reply quote clicked → would scroll to message')
+    );
+    replyWrap.insertBefore(quote, replyWrap.firstChild);
+    replyRow.style.display = 'flex';
+
+    // Update element count after reply quote added
+    document.getElementById('ic-elements').textContent = countElements();
+
+    // ── Log helper ────────────────────────────────────────────────────────────
+    const logEl = document.getElementById('status-log');
+    function log(msg) {
+        logEl.textContent = '› ' + msg;
+    }
+
+    // ── Lifecycle buttons ─────────────────────────────────────────────────────
+    document.getElementById('btn-destroy').addEventListener('click', () => {
+        destroyLiquidGlass();
+        log('destroyLiquidGlass() called — all effects removed.');
+    });
+
+    document.getElementById('btn-init').addEventListener('click', () => {
+        initLiquidGlass();
+        document.getElementById('ic-elements').textContent = countElements();
+        log('initLiquidGlass() called — effects restored.');
+    });
+
+    document.getElementById('btn-tier').addEventListener('click', () => {
+        log(`getGpuTier() → "${getGpuTier()}"`);
+    });
+
+    document.getElementById('btn-version').addEventListener('click', () => {
+        log(`version() → "${version()}"`);
+    });
+
+    // ── Dynamic injection ─────────────────────────────────────────────────────
+    const zone = document.getElementById('dynamic-zone');
+    let cardCount = 0;
+    let pillCount = 0;
+
+    document.getElementById('btn-add-card').addEventListener('click', () => {
+        cardCount++;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'lg-outer block';
+
+        const el = document.createElement('div');
+        el.className = 'lg lg-card lg-interactive';
+        el.style.minWidth = '180px';
+        el.innerHTML = `
+      <div class="card-body" style="color:rgba(255,255,255,0.88)">
+        <h3 style="font-family:'DM Serif Display',serif;font-size:17px;margin-bottom:6px;font-weight:400">
+          Card #${cardCount}
+        </h3>
+        <p style="font-size:11px;color:rgba(255,255,255,0.45);line-height:1.6">
+          Auto-attached by MutationObserver
+        </p>
+      </div>`;
+
+        wrapper.appendChild(el);
+        zone.appendChild(wrapper);
+        document.getElementById('ic-elements').textContent = countElements();
+        log(`Injected card #${cardCount} — MutationObserver auto-attached.`);
+    });
+
+    document.getElementById('btn-add-pill').addEventListener('click', () => {
+        pillCount++;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'lg-outer';
+
+        const el = document.createElement('div');
+        el.className = 'lg lg-pill lg-interactive';
+        el.innerHTML = `<span class="pill-text">Pill #${pillCount}</span>`;
+
+        wrapper.appendChild(el);
+        zone.appendChild(wrapper);
+        document.getElementById('ic-elements').textContent = countElements();
+        log(`Injected pill #${pillCount} — MutationObserver auto-attached.`);
+    });
+
+    document.getElementById('btn-clear-dynamic').addEventListener('click', () => {
+        zone.innerHTML = '';
+        cardCount = 0;
+        pillCount = 0;
+        document.getElementById('ic-elements').textContent = countElements();
+        log('Dynamic zone cleared — MutationObserver detached removed elements.');
+    });
+</script>
+
+</body>
+</html>
